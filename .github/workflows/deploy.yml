@@ -41,4 +41,4 @@ jobs:
         with:
           context: ./tradeeasy-ui
           push: true
-          tags: yourusername/tradeeasy-ui:latest 
+          tags: shaunyah/tradeeasy-ui:latest 
