@@ -1,0 +1,29 @@
+name: Type Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: tradeeasy-ui/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: tradeeasy-ui
+        run: npm ci
+      
+      - name: Type check
+        working-directory: tradeeasy-ui
+        run: npx tsc --noEmit 

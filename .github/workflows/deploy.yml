@@ -1,0 +1,44 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: tradeeasy-ui/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: tradeeasy-ui
+        run: npm ci
+      
+      - name: Build
+        working-directory: tradeeasy-ui
+        run: npm run build
+        
+      # Example deployment to Docker registry
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./tradeeasy-ui
+          push: true
+          tags: yourusername/tradeeasy-ui:latest 
