@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { SentimentChart, Card } from '@/components/ui';
 
 interface AssetData {
   symbol: string;
@@ -19,34 +20,60 @@ interface NewsItem {
   sentiment: number;
 }
 
-const SentimentHistory = ({ symbol }: { symbol: string }) => {
-  // This would be replaced with real chart library in production
-  // For now, just displaying a placeholder
-  return (
-    <div className="bg-gray-800 rounded-lg p-6 shadow-lg mb-6">
-      <h3 className="text-xl font-medium mb-4">Sentiment History</h3>
-      <div className="flex justify-between mb-2">
-        <button className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600 transition">1D</button>
-        <button className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600 transition">1W</button>
-        <button className="px-3 py-1 bg-accent rounded text-sm">1M</button>
-        <button className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600 transition">3M</button>
-        <button className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600 transition">1Y</button>
-        <button className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600 transition">All</button>
-      </div>
-      <div className="h-64 w-full bg-gray-700 rounded flex items-center justify-center">
-        <p className="text-gray-400">
-          Sentiment history chart for {symbol} would appear here.
-          <br />
-          (Using TradingView or Chart.js in production)
-        </p>
-      </div>
-    </div>
-  );
+interface SentimentDataPoint {
+  timestamp: string;
+  score: number;
+}
+
+// Generate mock sentiment history data
+const generateSentimentHistory = (symbol: string, days: number = 30) => {
+  const data: SentimentDataPoint[] = [];
+  const now = new Date();
+  
+  // Generate daily data for the past 'days'
+  for (let i = days; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    
+    // Base sentiment with some randomness
+    // Different starting points for different symbols to simulate variety
+    const symbolSeed = symbol.charCodeAt(0) * 0.01;
+    const baseVal = Math.sin(i * 0.2 + symbolSeed) * 0.5;
+    
+    // Add some random noise
+    const noise = (Math.random() - 0.5) * 0.3;
+    const sentimentScore = Math.max(-1, Math.min(1, baseVal + noise));
+    
+    data.push({
+      timestamp: date.toISOString(),
+      score: sentimentScore
+    });
+    
+    // Add hourly data for the current day
+    if (i === 0) {
+      for (let hour = 1; hour <= 8; hour++) {
+        const hourDate = new Date(now);
+        hourDate.setHours(hourDate.getHours() - hour);
+        
+        const hourNoise = (Math.random() - 0.5) * 0.15;
+        // Use the last daily sentiment as a base for hourly variations
+        const hourSentiment = Math.max(-1, Math.min(1, sentimentScore + hourNoise));
+        
+        data.push({
+          timestamp: hourDate.toISOString(),
+          score: hourSentiment
+        });
+      }
+    }
+  }
+  
+  // Sort by timestamp
+  return data.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 };
 
 const NewsList = ({ news }: { news: NewsItem[] }) => {
   return (
-    <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+    <Card className="p-6">
       <h3 className="text-xl font-medium mb-4">Recent News</h3>
       <div className="space-y-4">
         {news.map((item) => (
@@ -67,7 +94,7 @@ const NewsList = ({ news }: { news: NewsItem[] }) => {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 };
 
@@ -77,6 +104,7 @@ export default function AssetDetail() {
   
   const [assetData, setAssetData] = useState<AssetData | null>(null);
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [sentimentHistory, setSentimentHistory] = useState<SentimentDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -99,6 +127,9 @@ export default function AssetDetail() {
       
       if (data) {
         setAssetData(data);
+        
+        // Generate sentiment history data
+        setSentimentHistory(generateSentimentHistory(symbolStr.toUpperCase()));
         
         // Mock news for this asset
         setNews([
@@ -192,8 +223,16 @@ export default function AssetDetail() {
         </div>
       </div>
       
-      <SentimentHistory symbol={assetData.symbol} />
+      {/* Sentiment Chart */}
+      <div className="mb-6">
+        <SentimentChart 
+          data={sentimentHistory} 
+          assetSymbol={assetData.symbol} 
+          height={350}
+        />
+      </div>
       
+      {/* News List */}
       <NewsList news={news} />
     </>
   );
