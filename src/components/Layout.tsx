@@ -1,12 +1,23 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
+import ConnectionStatus from './ConnectionStatus';
+import { initRealTimeUpdates } from '@/utils/realtime';
 
 type LayoutProps = {
   children: ReactNode;
 };
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  useEffect(() => {
+    // Initialize real-time updates when the layout loads
+    // This ensures WebSocket connects as soon as possible
+    initRealTimeUpdates();
+    
+    // No cleanup needed here since the Layout component
+    // is always mounted for the lifecycle of the app
+  }, []);
+  
   return (
     <div className="min-h-screen bg-bg text-white">
       <Navbar />
@@ -16,6 +27,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {children}
         </div>
       </main>
+      <ConnectionStatus />
     </div>
   );
 };

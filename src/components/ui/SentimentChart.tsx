@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip as ChartTooltip, Legend, Filler } from 'chart.js';
 import { cn } from '@/utils/cn';
+import { Tooltip } from './';
+import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline/index.js';
 
 // Register required Chart.js components
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, ChartTooltip, Legend, Filler);
 
 interface SentimentDataPoint {
   timestamp: string;
@@ -160,7 +162,13 @@ const SentimentChart: React.FC<SentimentChartProps> = ({
             return new Date(filteredData[index].timestamp).toLocaleString();
           },
           label: function(context: any) {
-            return `Sentiment: ${context.raw.toFixed(2)}`;
+            const score = context.raw.toFixed(2);
+            let sentiment = "Neutral";
+            if (context.raw < -0.5) sentiment = "Strongly Bearish";
+            else if (context.raw < 0) sentiment = "Moderately Bearish";
+            else if (context.raw > 0.5) sentiment = "Strongly Bullish";
+            else if (context.raw > 0) sentiment = "Moderately Bullish";
+            return [`Sentiment: ${score}`, `Market View: ${sentiment}`];
           }
         }
       }
@@ -178,48 +186,69 @@ const SentimentChart: React.FC<SentimentChartProps> = ({
   return (
     <div className={cn("bg-gray-800 rounded-lg p-4 shadow-lg", className)}>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-medium">{assetSymbol} Sentiment History</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-xl font-medium">{assetSymbol} Sentiment History</h3>
+          <Tooltip
+            content={
+              <div className="max-w-xs">
+                <p className="font-medium mb-1">Understanding Sentiment History</p>
+                <p className="text-sm opacity-90">This chart shows how market sentiment for {assetSymbol} has changed over time. Values range from -1 (extremely bearish) to +1 (extremely bullish).</p>
+              </div>
+            }
+            position="right"
+          >
+            <QuestionMarkCircleIcon className="w-5 h-5 text-gray-400 hover:text-gray-300 cursor-help" />
+          </Tooltip>
+        </div>
         <div className="flex space-x-2 text-sm">
-          <button 
-            onClick={() => setActiveTimespan('day')}
-            className={cn("px-3 py-1 rounded transition", 
-              activeTimespan === 'day' 
-                ? "bg-accent text-white" 
-                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
-            )}
-          >
-            1D
-          </button>
-          <button 
-            onClick={() => setActiveTimespan('week')}
-            className={cn("px-3 py-1 rounded transition", 
-              activeTimespan === 'week' 
-                ? "bg-accent text-white" 
-                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
-            )}
-          >
-            1W
-          </button>
-          <button 
-            onClick={() => setActiveTimespan('month')}
-            className={cn("px-3 py-1 rounded transition", 
-              activeTimespan === 'month' 
-                ? "bg-accent text-white" 
-                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
-            )}
-          >
-            1M
-          </button>
-          <button 
-            onClick={() => setActiveTimespan('year')}
-            className={cn("px-3 py-1 rounded transition", 
-              activeTimespan === 'year' 
-                ? "bg-accent text-white" 
-                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
-            )}
-          >
-            1Y
-          </button>
+          <Tooltip content="View last 24 hours" position="top">
+            <button 
+              onClick={() => setActiveTimespan('day')}
+              className={cn("px-3 py-1 rounded transition", 
+                activeTimespan === 'day' 
+                  ? "bg-accent text-white" 
+                  : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+              )}
+            >
+              1D
+            </button>
+          </Tooltip>
+          <Tooltip content="View last 7 days" position="top">
+            <button 
+              onClick={() => setActiveTimespan('week')}
+              className={cn("px-3 py-1 rounded transition", 
+                activeTimespan === 'week' 
+                  ? "bg-accent text-white" 
+                  : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+              )}
+            >
+              1W
+            </button>
+          </Tooltip>
+          <Tooltip content="View last 30 days" position="top">
+            <button 
+              onClick={() => setActiveTimespan('month')}
+              className={cn("px-3 py-1 rounded transition", 
+                activeTimespan === 'month' 
+                  ? "bg-accent text-white" 
+                  : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+              )}
+            >
+              1M
+            </button>
+          </Tooltip>
+          <Tooltip content="View last 365 days" position="top">
+            <button 
+              onClick={() => setActiveTimespan('year')}
+              className={cn("px-3 py-1 rounded transition", 
+                activeTimespan === 'year' 
+                  ? "bg-accent text-white" 
+                  : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+              )}
+            >
+              1Y
+            </button>
+          </Tooltip>
         </div>
       </div>
       
@@ -227,7 +256,30 @@ const SentimentChart: React.FC<SentimentChartProps> = ({
         {filteredData.length > 0 ? (
           <Line
             data={chartData}
-            options={chartOptions as any}
+            options={{
+              ...chartOptions,
+              plugins: {
+                ...chartOptions.plugins,
+                tooltip: {
+                  ...chartOptions.plugins.tooltip,
+                  callbacks: {
+                    title: function(tooltipItems: any) {
+                      const index = tooltipItems[0].dataIndex;
+                      return new Date(filteredData[index].timestamp).toLocaleString();
+                    },
+                    label: function(context: any) {
+                      const score = context.raw.toFixed(2);
+                      let sentiment = "Neutral";
+                      if (context.raw < -0.5) sentiment = "Strongly Bearish";
+                      else if (context.raw < 0) sentiment = "Moderately Bearish";
+                      else if (context.raw > 0.5) sentiment = "Strongly Bullish";
+                      else if (context.raw > 0) sentiment = "Moderately Bullish";
+                      return [`Sentiment: ${score}`, `Market View: ${sentiment}`];
+                    }
+                  }
+                }
+              }
+            } as any}
             height={height}
           />
         ) : (
@@ -235,6 +287,26 @@ const SentimentChart: React.FC<SentimentChartProps> = ({
             <p className="text-gray-400">No sentiment data available for the selected time period</p>
           </div>
         )}
+      </div>
+      
+      <div className="mt-4 text-xs text-gray-400">
+        <Tooltip
+          content={
+            <div className="max-w-xs">
+              <p className="text-sm">The gradient color indicates the overall trend:</p>
+              <ul className="mt-1 text-xs">
+                <li>• Green: Positive sentiment trend</li>
+                <li>• Red: Negative sentiment trend</li>
+              </ul>
+            </div>
+          }
+          position="top"
+        >
+          <div className="flex items-center gap-1 cursor-help">
+            <QuestionMarkCircleIcon className="w-4 h-4" />
+            <span>Hover over data points for detailed sentiment analysis</span>
+          </div>
+        </Tooltip>
       </div>
     </div>
   );

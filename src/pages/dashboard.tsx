@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { Card, Container, SentimentGauge, PriceChart, NewsCarousel } from '@/components/ui';
+import { initRealTimeUpdates, subscribeSentiment, simulateSentimentUpdate, SentimentUpdate, disconnect } from '@/utils/realtime';
+import { mockAssetData } from '@/utils/watchlist';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Sample data for charts
 const generateChartData = (baseValue: number, volatility: number, length: number = 20) => {
@@ -46,8 +49,8 @@ const newsItems = [
   },
 ];
 
-// Market data - Updated to ensure AAPL, EUR/USD, BTC, and Gold are the first 4 items
-const marketData = [
+// Initial market data
+const initialMarketData = [
   { symbol: 'AAPL', name: 'Apple Inc.', price: 178.72, change: 1.25, sentiment: 0.65, data: generateChartData(175, 10) },
   { symbol: 'EUR/USD', name: 'Euro/US Dollar', price: 1.0982, change: 0.12, sentiment: 0.12, data: generateChartData(1.09, 0.01) },
   { symbol: 'BTC', name: 'Bitcoin', price: 52361.87, change: -1.24, sentiment: -0.24, data: generateChartData(52000, 1000) },
@@ -57,7 +60,103 @@ const marketData = [
   { symbol: 'AMZN', name: 'Amazon.com Inc.', price: 182.41, change: 0.63, sentiment: 0.28, data: generateChartData(180, 8) },
 ];
 
+// Enhanced TableCell component with animation
+const AnimatedTableCell = ({ 
+  children, 
+  isUpdated = false,
+  className = ""
+}: { 
+  children: React.ReactNode, 
+  isUpdated?: boolean,
+  className?: string
+}) => {
+  return (
+    <td className={`px-6 py-4 whitespace-nowrap text-sm ${className}`}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={isUpdated ? 'updated' : 'normal'}
+          initial={isUpdated ? { backgroundColor: 'rgba(74, 222, 128, 0.2)' } : {}}
+          animate={{ backgroundColor: 'rgba(74, 222, 128, 0)' }}
+          transition={{ duration: 1.5 }}
+          className="rounded-sm px-1 -mx-1"
+        >
+          {children}
+        </motion.div>
+      </AnimatePresence>
+    </td>
+  );
+};
+
 export default function Dashboard() {
+  // State for real-time data
+  const [marketData, setMarketData] = useState(initialMarketData);
+  const [recentUpdates, setRecentUpdates] = useState<Record<string, number>>({});
+  const [connectionStatus, setConnectionStatus] = useState(false);
+  
+  // Initialize real-time updates
+  useEffect(() => {
+    // Initialize WebSocket connection
+    initRealTimeUpdates();
+    
+    // Subscribe to sentiment updates
+    const unsubscribe = subscribeSentiment((update: SentimentUpdate) => {
+      setMarketData(prevData => {
+        // Update market data with new sentiment score
+        const newData = prevData.map(asset => {
+          if (asset.symbol === update.asset) {
+            // Track this update for animation purposes
+            setRecentUpdates(prev => ({
+              ...prev,
+              [asset.symbol]: Date.now()
+            }));
+            
+            return {
+              ...asset,
+              sentiment: update.score,
+              // Also simulate a small price change
+              price: asset.price * (1 + (Math.random() * 0.01 - 0.005)),
+              change: asset.change + (Math.random() * 0.1 - 0.05)
+            };
+          }
+          return asset;
+        });
+        
+        return newData;
+      });
+    });
+    
+    // For development/demo, simulate updates every few seconds
+    let simulationInterval: NodeJS.Timeout;
+    if (process.env.NODE_ENV === 'development') {
+      simulationInterval = setInterval(() => {
+        // Pick a random asset
+        const randomAsset = initialMarketData[Math.floor(Math.random() * initialMarketData.length)].symbol;
+        simulateSentimentUpdate(randomAsset);
+      }, 5000);
+      
+      // Initial simulation after 1 second
+      setTimeout(() => {
+        simulateSentimentUpdate('AAPL');
+      }, 1000);
+    }
+    
+    // Cleanup function
+    return () => {
+      unsubscribe();
+      if (simulationInterval) clearInterval(simulationInterval);
+      disconnect();
+    };
+  }, []);
+  
+  // Function to check if an asset was recently updated (for animations)
+  const wasRecentlyUpdated = (symbol: string): boolean => {
+    const updateTime = recentUpdates[symbol];
+    if (!updateTime) return false;
+    
+    // Consider "recent" as within the last 2 seconds
+    return Date.now() - updateTime < 2000;
+  };
+  
   return (
     <>
       <Head>
@@ -72,6 +171,10 @@ export default function Dashboard() {
           <div className="mb-6">
             <h1 className="text-3xl font-bold">Dashboard</h1>
             <p className="text-gray-400">Real-time sentiment analytics for financial markets</p>
+            <div className="mt-1 text-xs flex items-center">
+              <span className={`inline-block w-2 h-2 rounded-full mr-1 ${connectionStatus ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+              <span className="text-gray-400">{connectionStatus ? 'Live updates' : 'Connecting...'}</span>
+            </div>
           </div>
           
           {/* News Carousel */}
@@ -127,21 +230,35 @@ export default function Dashboard() {
                   </thead>
                   <tbody className="divide-y divide-gray-700">
                     {marketData.map((asset) => (
-                      <tr key={asset.symbol} className="hover:bg-gray-700/50 transition-colors">
+                      <motion.tr 
+                        key={asset.symbol} 
+                        className="hover:bg-gray-700/50 transition-colors"
+                        animate={{ opacity: 1 }}
+                        initial={{ opacity: 0.8 }}
+                        transition={{ duration: 0.3 }}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-accent">{asset.symbol}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{asset.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <AnimatedTableCell 
+                          isUpdated={wasRecentlyUpdated(asset.symbol)}
+                        >
                           <span className={`inline-block px-2 py-1 rounded text-xs ${asset.sentiment > 0 ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>
                             {asset.sentiment.toFixed(2)}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                        </AnimatedTableCell>
+                        <AnimatedTableCell 
+                          isUpdated={wasRecentlyUpdated(asset.symbol)}
+                          className="text-gray-300"
+                        >
                           {asset.symbol.includes('/') ? asset.price.toFixed(4) : '$' + asset.price.toFixed(2)}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${asset.change > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {asset.change > 0 ? '+' : ''}{asset.change}%
-                        </td>
-                      </tr>
+                        </AnimatedTableCell>
+                        <AnimatedTableCell
+                          isUpdated={wasRecentlyUpdated(asset.symbol)}
+                          className={asset.change > 0 ? 'text-green-400' : 'text-red-400'}
+                        >
+                          {asset.change > 0 ? '+' : ''}{asset.change.toFixed(2)}%
+                        </AnimatedTableCell>
+                      </motion.tr>
                     ))}
                   </tbody>
                 </table>
