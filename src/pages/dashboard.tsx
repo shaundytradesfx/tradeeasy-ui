@@ -16,36 +16,40 @@ const generateChartData = (baseValue: number, volatility: number, length: number
 // Sample news data
 const newsItems = [
   {
-    id: 1,
+    id: "1",
     title: 'Fed Expected to Maintain Interest Rates at Next Meeting',
+    content: 'The Federal Reserve is widely expected to keep interest rates unchanged at the upcoming FOMC meeting, according to market analysts. This decision comes amid mixed economic signals and ongoing inflation concerns.',
     source: 'Financial Times',
-    date: '2h ago',
+    published_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
     sentiment: 0.15,
-    image: 'https://images.unsplash.com/photo-1638913662295-9630035ef770?q=80&w=320&auto=format'
+    asset_mentions: ['USD', 'SPY', 'TLT']
   },
   {
-    id: 2,
+    id: "2",
     title: 'Tech Stocks Rally on Strong Earnings Reports',
+    content: 'Major technology companies exceeded earnings expectations this quarter, driving a significant rally in tech stocks. Cloud computing and AI segments showed particularly strong growth.',
     source: 'Bloomberg',
-    date: '4h ago',
+    published_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
     sentiment: 0.72,
-    image: 'https://images.unsplash.com/photo-1625798912453-5ada25cffb71?q=80&w=320&auto=format'
+    asset_mentions: ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'QQQ']
   },
   {
-    id: 3,
+    id: "3",
     title: 'Oil Prices Drop Amid Global Demand Concerns',
+    content: 'Crude oil prices fell sharply today as traders worry about weakening global demand. Economic slowdown fears in major economies are weighing on energy markets.',
     source: 'Reuters',
-    date: '6h ago',
+    published_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
     sentiment: -0.48,
-    image: 'https://images.unsplash.com/photo-1615224571365-ad27bcf0af3a?q=80&w=320&auto=format'
+    asset_mentions: ['WTI', 'BRENT', 'XLE', 'USO']
   },
   {
-    id: 4,
+    id: "4",
     title: 'New Trade Agreement Boosts Market Confidence',
+    content: 'A newly signed trade agreement between major economies has boosted investor confidence, with markets responding positively to reduced trade tensions and improved economic outlook.',
     source: 'Wall Street Journal',
-    date: '8h ago',
+    published_at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), // 8 hours ago
     sentiment: 0.64,
-    image: 'https://images.unsplash.com/photo-1638913658211-c999de7fe786?q=80&w=320&auto=format'
+    asset_mentions: ['SPY', 'DJI', 'VTI', 'EEM']
   },
 ];
 
@@ -179,7 +183,7 @@ export default function Dashboard() {
           
           {/* News Carousel */}
           <div className="mb-8">
-            <NewsCarousel items={newsItems} />
+            <NewsCarousel newsItems={newsItems} />
           </div>
           
           {/* Sentiment Gauges Grid */}
